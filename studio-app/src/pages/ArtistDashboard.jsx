@@ -23,7 +23,7 @@ export default function ArtistDashboard({ profile }) {
   useEffect(() => { fetchClients(); fetchDeliveries() }, [])
 
   const fetchClients = async () => {
-    const { data } = await supabase.from('profiles').select('*').eq('role', 'client')
+    const { data } = await supabase.from('clients').select('*').eq('artist_id', profile.id)
     setClients(data || [])
   }
 
@@ -40,6 +40,7 @@ export default function ArtistDashboard({ profile }) {
   const handleUpload = async () => {
     if (!uploadClientId || uploadFiles.length === 0) return
     setUploading(true); setUploadProgress(0)
+    const client = clients.find(c => c.id === uploadClientId)
     let done = 0
     for (const file of uploadFiles) {
       const ext = file.name.split('.').pop()
@@ -50,9 +51,14 @@ export default function ArtistDashboard({ profile }) {
         const fileType = typeMap[file.type.split('/')[0]] || 'photo'
         const size = file.size > 1e9 ? `${(file.size/1e9).toFixed(1)} GB` : `${(file.size/1e6).toFixed(1)} MB`
         await supabase.from('deliveries').insert({
-          client_id: uploadClientId, artist_id: profile.id,
-          file_name: file.name, file_type: fileType,
-          file_size: size, storage_path: path, viewed: false
+          client_id: uploadClientId,
+          client_email: client?.email,
+          artist_id: profile.id,
+          file_name: file.name,
+          file_type: fileType,
+          file_size: size,
+          storage_path: path,
+          viewed: false
         })
       }
       done++
@@ -66,17 +72,14 @@ export default function ArtistDashboard({ profile }) {
   const handleAddClient = async (e) => {
     e.preventDefault()
     setAddingClient(true)
-    const { data, error } = await supabase.auth.admin?.inviteUserByEmail
-      ? { data: null, error: { message: 'Use signup flow' } }
-      : { data: null, error: null }
-    // Create a placeholder profile that client can claim when they sign up
-    const tempId = crypto.randomUUID()
-    const { error: profileError } = await supabase.from('profiles').insert({
-      id: tempId, name: newClientName, email: newClientEmail, role: 'client'
+    const { error } = await supabase.from('clients').insert({
+      artist_id: profile.id,
+      name: newClientName,
+      email: newClientEmail
     })
-    if (!profileError) {
+    if (!error) {
       await fetchClients()
-      showToast(`${newClientName} added! Share your site link so they can create their account.`, '✓')
+      showToast(`${newClientName} added!`, '✓')
       setShowAddClient(false); setNewClientName(''); setNewClientEmail('')
     } else {
       showToast('Error adding client. Try again.', '✗')
@@ -115,11 +118,10 @@ export default function ArtistDashboard({ profile }) {
     setUploadFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)])
   }
 
-  // ── Signed image component
   const SignedImage = ({ path, alt, style, onClick }) => {
     const [url, setUrl] = useState(null)
     useEffect(() => { getSignedUrl(path).then(setUrl) }, [path])
-    if (!url) return <div style={{ ...style, background:'var(--bg3)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-mute)', fontSize:11 }}>Loading...</div>
+    if (!url) return <div style={{ ...style, background:'var(--bg3)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-mute)', fontSize:11, minHeight:120 }}>Loading...</div>
     return <img src={url} alt={alt} style={style} onClick={onClick} />
   }
 
@@ -227,10 +229,10 @@ export default function ArtistDashboard({ profile }) {
         .toast { position:fixed; bottom:28px; right:28px; z-index:300; background:var(--bg3); border:1px solid var(--gold); border-radius:var(--radius-lg); padding:14px 20px; display:flex; align-items:center; gap:12px; font-size:13px; animation:slideIn 0.3s ease; box-shadow:0 8px 32px rgba(0,0,0,0.5); }
         .logout-btn { font-size:11px; color:var(--text-mute); cursor:pointer; background:none; border:none; letter-spacing:0.05em; transition:color var(--transition); }
         .logout-btn:hover { color:var(--red); }
+        .info-box { background:rgba(201,169,110,0.08); border:1px solid rgba(201,169,110,0.2); border-radius:var(--radius); padding:12px 14px; font-size:12px; color:var(--gold); margin-bottom:20px; }
       `}</style>
 
       <div className="app">
-        {/* Sidebar */}
         <div className="sidebar">
           <div className="logo-wrap">
             <div className="logo-name">STUDIO</div>
@@ -242,12 +244,8 @@ export default function ArtistDashboard({ profile }) {
               ⌂ Dashboard
               {totalNew > 0 && <span className="nav-badge">{totalNew}</span>}
             </button>
-            <button className="nav-item" onClick={() => { setShowUpload(true) }}>
-              ↑ Send Files
-            </button>
-            <button className="nav-item" onClick={() => setShowAddClient(true)}>
-              + Add Client
-            </button>
+            <button className="nav-item" onClick={() => setShowUpload(true)}>↑ Send Files</button>
+            <button className="nav-item" onClick={() => setShowAddClient(true)}>+ Add Client</button>
           </nav>
           <div className="sidebar-user">
             <div className="avatar">{profile.name?.slice(0,2).toUpperCase()}</div>
@@ -259,7 +257,6 @@ export default function ArtistDashboard({ profile }) {
           </div>
         </div>
 
-        {/* Main */}
         <div className="main">
           <div className="topbar">
             <div>
@@ -267,19 +264,13 @@ export default function ArtistDashboard({ profile }) {
               <div className="topbar-sub">{selectedClient ? `${clientDeliveries(selectedClient.id).length} files delivered` : 'Artist workspace'}</div>
             </div>
             <div style={{ display:'flex', gap:10 }}>
-              {selectedClient && (
-                <button className="btn btn-gold" onClick={() => { setUploadClientId(selectedClient.id); setShowUpload(true) }}>↑ Send Files</button>
-              )}
-              {!selectedClient && (
-                <button className="btn btn-gold" onClick={() => setShowUpload(true)}>↑ Send Files</button>
-              )}
+              <button className="btn btn-gold" onClick={() => { if(selectedClient) setUploadClientId(selectedClient.id); setShowUpload(true) }}>↑ Send Files</button>
             </div>
           </div>
 
           <div className="content">
             {!selectedClient ? (
               <>
-                {/* Stats */}
                 <div className="stats-grid">
                   {[
                     { label:'Total Clients', value: clients.length, delta:'Active clients' },
@@ -294,8 +285,6 @@ export default function ArtistDashboard({ profile }) {
                     </div>
                   ))}
                 </div>
-
-                {/* Clients */}
                 <div className="section-header">
                   <div className="section-title">Your Clients</div>
                   <button className="btn btn-outline" onClick={() => setShowAddClient(true)}>+ Add Client</button>
@@ -332,8 +321,7 @@ export default function ArtistDashboard({ profile }) {
               </>
             ) : (
               <>
-                {/* Client Gallery */}
-                <button className="back-btn" onClick={() => setSelectedClient(null)}>← Back to Dashboard</button>
+                <button className="back-btn" onClick={() => setSelectedClient(null)}>← Back</button>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
                   <div className="filter-bar">
                     {['all','photo','video','audio'].map(f => (
@@ -343,7 +331,6 @@ export default function ArtistDashboard({ profile }) {
                     ))}
                   </div>
                 </div>
-
                 {photos(selectedClient.id).length > 0 && (
                   <>
                     <div className="section-header"><div className="section-title">Photography</div></div>
@@ -359,7 +346,6 @@ export default function ArtistDashboard({ profile }) {
                     </div>
                   </>
                 )}
-
                 {nonPhotos(selectedClient.id).length > 0 && (
                   <>
                     <div className="section-header"><div className="section-title">Video & Audio</div></div>
@@ -380,10 +366,9 @@ export default function ArtistDashboard({ profile }) {
                     </div>
                   </>
                 )}
-
                 {filteredDeliveries(selectedClient.id).length === 0 && (
                   <div style={{ textAlign:'center', padding:'60px 0', color:'var(--text-mute)', fontSize:14 }}>
-                    No files yet. Click "Send Files" to deliver content to this client.
+                    No files yet. Click "Send Files" to deliver content.
                   </div>
                 )}
               </>
@@ -392,7 +377,6 @@ export default function ArtistDashboard({ profile }) {
         </div>
       </div>
 
-      {/* Upload Modal */}
       {showUpload && (
         <div className="modal-overlay" onClick={e => e.target===e.currentTarget && setShowUpload(false)}>
           <div className="modal">
@@ -430,13 +414,11 @@ export default function ArtistDashboard({ profile }) {
                   ))}
                 </div>
               )}
-              {uploading && (
-                <div className="progress-bar"><div className="progress-fill" style={{ width:`${uploadProgress}%` }} /></div>
-              )}
+              {uploading && <div className="progress-bar"><div className="progress-fill" style={{ width:`${uploadProgress}%` }} /></div>}
             </div>
             <div className="modal-actions">
               <button className="btn btn-outline" onClick={() => { setShowUpload(false); setUploadFiles([]) }}>Cancel</button>
-              <button className="btn btn-gold" onClick={handleUpload} disabled={!uploadClientId || uploadFiles.length===0 || uploading}
+              <button className="btn btn-gold" onClick={handleUpload} disabled={!uploadClientId||uploadFiles.length===0||uploading}
                 style={{ opacity:(!uploadClientId||uploadFiles.length===0||uploading)?0.5:1 }}>
                 {uploading ? `Uploading ${uploadProgress}%...` : `↑ Deliver ${uploadFiles.length>0?uploadFiles.length+' File'+(uploadFiles.length>1?'s':''):'Files'}`}
               </button>
@@ -445,12 +427,11 @@ export default function ArtistDashboard({ profile }) {
         </div>
       )}
 
-      {/* Add Client Modal */}
       {showAddClient && (
         <div className="modal-overlay" onClick={e => e.target===e.currentTarget && setShowAddClient(false)}>
           <div className="modal" style={{ maxWidth:440 }}>
             <div className="modal-title">Add Client</div>
-            <div className="modal-sub">Add a new client to start delivering files to their private gallery</div>
+            <div className="modal-sub">Add a client to start delivering files to their gallery</div>
             <form onSubmit={handleAddClient}>
               <div className="form-group">
                 <label className="form-label">Client Name</label>
@@ -460,8 +441,8 @@ export default function ArtistDashboard({ profile }) {
                 <label className="form-label">Client Email</label>
                 <input className="form-input" type="email" value={newClientEmail} onChange={e=>setNewClientEmail(e.target.value)} placeholder="isabella@email.com" required />
               </div>
-              <div style={{ background:'rgba(201,169,110,0.08)', border:'1px solid rgba(201,169,110,0.2)', borderRadius:'var(--radius)', padding:'12px 14px', fontSize:12, color:'var(--gold)', marginBottom:20 }}>
-                💡 Share your website link with {newClientName||'your client'} so they can create their account and see their gallery.
+              <div className="info-box">
+                💡 Share <strong>studio-delivery.vercel.app</strong> with your client so they can create their account and see their gallery.
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-outline" onClick={() => setShowAddClient(false)}>Cancel</button>
@@ -474,20 +455,16 @@ export default function ArtistDashboard({ profile }) {
         </div>
       )}
 
-      {/* Lightbox */}
       {lightbox && (
         <div className="lightbox" onClick={() => setLightbox(null)}>
           <button className="lightbox-close" onClick={() => setLightbox(null)}>×</button>
           {lightbox.url && <img src={lightbox.url} alt={lightbox.file_name} onClick={e=>e.stopPropagation()} />}
           <div className="lightbox-info">
-            <span>{lightbox.file_name}</span><span>·</span>
-            <span>{lightbox.file_size}</span><span>·</span>
-            <span>Full quality</span>
+            <span>{lightbox.file_name}</span><span>·</span><span>{lightbox.file_size}</span>
           </div>
         </div>
       )}
 
-      {/* Toast */}
       {toast && (
         <div className="toast">
           <span style={{ fontSize:16 }}>{toast.icon}</span>
