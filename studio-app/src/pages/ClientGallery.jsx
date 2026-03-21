@@ -11,7 +11,7 @@ export default function ClientGallery({ profile }) {
 
   const fetchDeliveries = async () => {
     const { data } = await supabase.from('deliveries').select('*')
-      .eq('client_id', profile.id).order('created_at', { ascending: false })
+  .eq('client_email', profile.email).order('created_at', { ascending: false })
     setDeliveries(data || [])
     setLoading(false)
   }
