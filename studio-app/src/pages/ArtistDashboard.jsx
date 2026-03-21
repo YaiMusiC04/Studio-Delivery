@@ -103,6 +103,12 @@ export default function ArtistDashboard({ profile }) {
     const url = await getSignedUrl(delivery.storage_path)
     if (url) { const a = document.createElement('a'); a.href = url; a.download = delivery.file_name; a.click() }
   }
+  const handleDelete = async (delivery) => {
+    if (!confirm(`Delete ${delivery.file_name}?`)) return
+    await supabase.storage.from('deliveries').remove([delivery.storage_path])
+    await supabase.from('deliveries').delete().eq('id', delivery.id)
+    setDeliveries(prev => prev.filter(d => d.id !== delivery.id))
+    showToast('File deleted', '✕')
 
   const clientDeliveries = (clientId) => deliveries.filter(d => d.client_id === clientId)
   const filteredDeliveries = (clientId) => {
