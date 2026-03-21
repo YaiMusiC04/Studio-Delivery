@@ -366,6 +366,7 @@ export default function ArtistDashboard({ profile }) {
                           <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                             <span className={`file-status ${!d.viewed?'file-status-new':'file-status-seen'}`}>{!d.viewed?'New':'Seen'}</span>
                             <button className="btn btn-outline" style={{ padding:'7px 14px' }} onClick={() => handleDownload(d)}>↓</button>
+                            <button className="btn btn-outline" style={{ padding:'7px 14px', color:'var(--red)', borderColor:'rgba(224,92,92,0.5)' }} onClick={() => handleDelete(d)}>✕</button>
                           </div>
                         </div>
                       ))}
