@@ -66,8 +66,7 @@ function MacroChip({ label, value, unit, color }) {
   )
 }
 
-function ScannedFoodCard({ food, onAdd }) {
-  const [grams, setGrams] = useState(food.estimatedGrams || 100)
+function ScannedFoodCard({ food, grams, onGramsChange }) {
   const f = grams / 100
   const cal = Math.round(food.per100g.calories * f)
   const p   = +(food.per100g.protein * f).toFixed(1)
@@ -91,23 +90,14 @@ function ScannedFoodCard({ food, onAdd }) {
         <span style={{ fontSize: 12, color: 'var(--text-dim)', flexShrink: 0 }}>Grams:</span>
         <input
           type="number" min="1" max="2000" value={grams}
-          onChange={e => setGrams(Math.max(1, parseInt(e.target.value) || 1))}
+          onChange={e => onGramsChange(Math.max(1, parseInt(e.target.value) || 1))}
           style={{
             width: 72, padding: '7px 10px', textAlign: 'center',
             background: 'var(--bg4)', border: '1px solid var(--border)',
             borderRadius: 8, color: 'var(--text)', fontSize: 14, fontWeight: 600, outline: 'none',
           }}
         />
-        <button
-          onClick={() => onAdd({ ...food, grams })}
-          style={{
-            flex: 1, padding: '8px 0', background: 'var(--green)',
-            border: 'none', borderRadius: 9, color: '#000',
-            fontSize: 13, fontWeight: 700, cursor: 'pointer',
-          }}
-        >
-          + Add
-        </button>
+        <span style={{ fontSize: 11, color: 'var(--text-mute)' }}>g</span>
       </div>
     </div>
   )
@@ -131,12 +121,21 @@ export default function AddFoodModal({ meal, onAdd, onClose }) {
   const [scanLoading, setScanLoading]   = useState(false)
   const [scanResults, setScanResults]   = useState(null)
   const [scanError, setScanError]       = useState(null)
+  const [gramsMap, setGramsMap]         = useState({})
 
   const inputRef = useRef(null)
   const fileRef  = useRef(null)
   const timerRef = useRef(null)
 
   useEffect(() => { if (mode === 'search') inputRef.current?.focus() }, [mode])
+
+  useEffect(() => {
+    if (scanResults?.foods) {
+      const init = {}
+      scanResults.foods.forEach((food, i) => { init[i] = food.estimatedGrams || 100 })
+      setGramsMap(init)
+    }
+  }, [scanResults])
 
   // Search debounce
   useEffect(() => {
@@ -457,9 +456,22 @@ export default function AddFoodModal({ meal, onAdd, onClose }) {
                   <ScannedFoodCard
                     key={i}
                     food={food}
-                    onAdd={(foodWithGrams) => handleAddScanned(foodWithGrams, foodWithGrams.grams)}
+                    grams={gramsMap[i] ?? food.estimatedGrams ?? 100}
+                    onGramsChange={g => setGramsMap(prev => ({ ...prev, [i]: g }))}
                   />
                 ))}
+
+                <button
+                  onClick={() => {
+                    scanResults.foods.forEach((food, i) => {
+                      handleAddScanned(food, gramsMap[i] ?? food.estimatedGrams ?? 100)
+                    })
+                    onClose()
+                  }}
+                  style={{ width: '100%', padding: '14px', background: 'var(--green)', border: 'none', borderRadius: 12, color: '#000', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}
+                >
+                  Add All to {meal.label}
+                </button>
 
                 <button
                   onClick={() => { setScanPreview(null); setScanResults(null); setScanError(null) }}
