@@ -74,10 +74,13 @@ export default function ChatPage() {
     setMessages(prev => [...prev, userMsg, { role: 'assistant', content: '', streaming: true }])
     setBusy(true)
 
-    const client = new Anthropic({
-      apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,
-      dangerouslyAllowBrowser: true,
-    })
+    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
+    if (!apiKey) {
+      setMessages(prev => prev.slice(0, -1).concat({ role: 'assistant', content: '⚠️ API key missing — contact the app owner.' }))
+      setBusy(false)
+      return
+    }
+    const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
 
     try {
       const history = [...messages, userMsg]

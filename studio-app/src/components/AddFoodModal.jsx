@@ -8,8 +8,10 @@ Return ONLY a valid JSON object — no markdown, no explanation, just raw JSON:
 Rules: list each food separately, estimate grams from visual size, use accurate values per 100g, calories > 0.`
 
 async function analyzeImage(compressed) {
+  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('API key missing — contact the app owner')
   const client = new Anthropic({
-    apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,
+    apiKey,
     dangerouslyAllowBrowser: true,
   })
   const msg = await client.messages.create({
