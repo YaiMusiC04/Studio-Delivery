@@ -1,111 +1,39 @@
-// Generates icon-192.png, icon-512.png, apple-touch-icon.png in public/
-const { deflateSync } = require('zlib')
+const { Resvg } = require('@resvg/resvg-js')
 const { writeFileSync } = require('fs')
 const path = require('path')
 
-const crcTable = (() => {
-  const t = new Uint32Array(256)
-  for (let i = 0; i < 256; i++) {
-    let c = i
-    for (let j = 0; j < 8; j++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
-    t[i] = c >>> 0
-  }
-  return t
-})()
-function crc32(buf) {
-  let c = 0xffffffff
-  for (const b of buf) c = crcTable[(c ^ b) & 0xff] ^ (c >>> 8)
-  return (c ^ 0xffffffff) >>> 0
-}
-function chunk(type, data) {
-  const t = Buffer.from(type, 'ascii')
-  const d = Buffer.isBuffer(data) ? data : Buffer.from(data)
-  const len = Buffer.allocUnsafe(4); len.writeUInt32BE(d.length)
-  const crcVal = Buffer.allocUnsafe(4); crcVal.writeUInt32BE(crc32(Buffer.concat([t, d])))
-  return Buffer.concat([len, t, d, crcVal])
-}
-function makePNG(size) {
-  const S = size
-  // RGBA pixels row by row
-  const raw = []
-  for (let y = 0; y < S; y++) {
-    raw.push(0) // filter none
-    for (let x = 0; x < S; x++) {
-      const [r, g, b, a] = pixel(x, y, S)
-      raw.push(r, g, b, a)
-    }
-  }
-  const sig = Buffer.from([137,80,78,71,13,10,26,10])
-  const ihdr = Buffer.allocUnsafe(13)
-  ihdr.writeUInt32BE(S, 0); ihdr.writeUInt32BE(S, 4)
-  ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0
-  const compressed = deflateSync(Buffer.from(raw), { level: 9 })
-  return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', compressed), chunk('IEND', Buffer.alloc(0))])
+const P1 = 'M35 19c0-2.062-.367-4.039-1.04-5.868-.46 5.389-3.333 8.157-6.335 6.868-2.812-1.208-.917-5.917-.777-8.164.236-3.809-.012-8.169-6.931-11.794 2.875 5.5.333 8.917-2.333 9.125-2.958.231-5.667-2.542-4.667-7.042-3.238 2.386-3.332 6.402-2.333 9 1.042 2.708-.042 4.958-2.583 5.208-2.84.28-4.418-3.041-2.963-8.333C2.52 10.965 1 14.805 1 19c0 9.389 7.611 17 17 17s17-7.611 17-17z'
+const P2 = 'M28.394 23.999c.148 3.084-2.561 4.293-4.019 3.709-2.106-.843-1.541-2.291-2.083-5.291s-2.625-5.083-5.708-6c2.25 6.333-1.247 8.667-3.08 9.084-1.872.426-3.753-.001-3.968-4.007C7.352 23.668 6 26.676 6 30c0 .368.023.73.055 1.09C9.125 34.124 13.342 36 18 36s8.875-1.876 11.945-4.91c.032-.36.055-.722.055-1.09 0-2.187-.584-4.236-1.606-6.001z'
+
+function makeSVG(size) {
+  // iOS/Android apply their own rounded-corner mask, so we use a flat square.
+  // Flame at 62% of size, centered with slight downward nudge.
+  const fw = size * 0.62
+  const scale = fw / 36
+  const tx = (size - fw) / 2
+  const ty = (size - fw) / 2 + size * 0.03
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '">',
+    '  <defs>',
+    '    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">',
+    '      <stop offset="0%" stop-color="#AAFF22"/>',
+    '      <stop offset="100%" stop-color="#22CC00"/>',
+    '    </linearGradient>',
+    '  </defs>',
+    '  <rect width="' + size + '" height="' + size + '" fill="url(#bg)"/>',
+    '  <g transform="translate(' + tx + ',' + ty + ') scale(' + scale + ')">',
+    '    <path fill="white" d="' + P1 + '"/>',
+    '    <path fill="white" d="' + P2 + '"/>',
+    '  </g>',
+    '</svg>',
+  ].join('\n')
 }
 
-// Icon design: rounded green square + white calorie flame
-function pixel(x, y, S) {
-  const BG = [34, 197, 94, 255]   // #22C55E green
-  const WHITE = [255, 255, 255, 255]
-  const TRANS = [0, 0, 0, 0]
-
-  const radius = S * 0.22  // corner radius
-  // rounded rect test
-  function inRoundedRect(px, py) {
-    const margin = 0
-    const r = radius
-    const x0 = margin, y0 = margin, x1 = S - margin, y1 = S - margin
-    if (px < x0 || px > x1 || py < y0 || py > y1) return false
-    const corners = [[x0+r,y0+r],[x1-r,y0+r],[x1-r,y1-r],[x0+r,y1-r]]
-    for (const [cx,cy] of corners) {
-      if (Math.abs(px-x0)<r+1 || Math.abs(px-x1)<r+1) {
-        if (Math.abs(py-y0)<r+1 || Math.abs(py-y1)<r+1) {
-          const dx = px-(px<S/2?x0+r:x1-r)
-          const dy = py-(py<S/2?y0+r:y1-r)
-          if (dx*dx+dy*dy > r*r) return false
-        }
-      }
-    }
-    return true
-  }
-
-  if (!inRoundedRect(x, y)) return TRANS
-
-  // Flame shape in normalized 0..1 coords centered
-  const nx = (x / S - 0.5) * 2   // -1..1
-  const ny = (y / S - 0.5) * 2   // -1..1 (top = -1)
-
-  // Outer flame: a teardrop pointing up
-  function inFlame(fx, fy) {
-    // Flame centered at 0, spanning roughly -0.55..0.55 wide, -0.7..0.55 tall
-    const ox = fx, oy = fy - 0.05  // shift slightly down
-    // Simple parametric flame: wide at bottom, narrows to point at top
-    const bottom = 0.55, top = -0.68
-    if (oy < top || oy > bottom) return false
-    // width at this oy level
-    const t = (oy - top) / (bottom - top)   // 0 at top, 1 at bottom
-    // Flame is wider in lower 2/3, tapers at top
-    const halfW = 0.38 * Math.sqrt(t) * (1 - Math.pow(1-t, 3) * 0.3)
-    return Math.abs(ox) <= halfW
-  }
-
-  function inInnerFlame(fx, fy) {
-    const ox = fx, oy = fy + 0.08
-    const bottom = 0.45, top = -0.35
-    if (oy < top || oy > bottom) return false
-    const t = (oy - top) / (bottom - top)
-    const halfW = 0.20 * Math.sqrt(t) * (1 - Math.pow(1-t, 3) * 0.4)
-    return Math.abs(ox) <= halfW
-  }
-
-  if (inInnerFlame(nx, ny)) return BG
-  if (inFlame(nx, ny)) return WHITE
-
-  return BG
+const OUT = path.join(__dirname, 'public')
+for (const [size, name] of [[180, 'apple-touch-icon'], [192, 'icon-192'], [512, 'icon-512']]) {
+  const svg = makeSVG(size)
+  const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: size } })
+  const png = resvg.render().asPng()
+  writeFileSync(path.join(OUT, name + '.png'), png)
+  console.log('✓', name + '.png', '(' + size + 'x' + size + ')')
 }
-
-const out = path.join(__dirname, 'public')
-writeFileSync(path.join(out, 'icon-192.png'), makePNG(192))
-writeFileSync(path.join(out, 'icon-512.png'), makePNG(512))
-writeFileSync(path.join(out, 'apple-touch-icon.png'), makePNG(180))
-console.log('Icons generated.')
