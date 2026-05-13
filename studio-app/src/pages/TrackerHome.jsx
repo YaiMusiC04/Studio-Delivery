@@ -92,7 +92,7 @@ const GOAL_FIELDS = [
   { key: 'calories', label: 'Calories',       unit: 'kcal', min: 1000, max: 10000, step: 50  },
   { key: 'protein',  label: 'Protein',         unit: 'g',    min: 0,    max: 1000,  step: 5   },
   { key: 'carbs',    label: 'Carbohydrates',   unit: 'g',    min: 0,    max: 1000,  step: 5   },
-  { key: 'fat',      label: 'Fat',             unit: 'g',    min: 0,    max: 500,   step: 5   },
+  { key: 'fat',      label: 'Fat',             unit: 'g',    min: 0,    max: 1000,  step: 5   },
 ]
 
 function GoalsModal({ goals, onChange, onSave, onClose }) {
