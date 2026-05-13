@@ -36,7 +36,12 @@ export default async function handler(req, res) {
   if (!image) return res.status(400).json({ error: 'No image provided' })
 
   const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) return res.status(500).json({ error: 'API key not configured' })
+  if (!apiKey) {
+    const found = Object.keys(process.env).filter(k => k.includes('ANTHROPIC'))
+    return res.status(500).json({
+      error: found.length ? `Key found as: ${found.join(', ')}` : 'No ANTHROPIC key found in env'
+    })
+  }
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
