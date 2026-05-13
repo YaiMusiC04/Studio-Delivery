@@ -1,11 +1,23 @@
-const LOG_KEY   = 'cft_log_v1'
-const GOALS_KEY = 'cft_goals_v1'
+const LOG_KEY     = 'cft_log_v1'
+const GOALS_KEY   = 'cft_goals_v1'
+const PROFILE_KEY = 'cft_profile_v1'
 
 export const DEFAULT_GOALS = {
   calories: 2000,
   protein: 150,
   carbs: 250,
   fat: 65,
+}
+
+// ── Profile ──────────────────────────────────────────────────────────────────
+
+export function getProfile() {
+  try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) || null }
+  catch { return null }
+}
+
+export function saveProfile(profile) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
 }
 
 // ── Goals ────────────────────────────────────────────────────────────────────
