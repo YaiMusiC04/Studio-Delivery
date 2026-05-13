@@ -231,14 +231,8 @@ export default function TrackerHome() {
         padding: 'calc(env(safe-area-inset-top) + 20px) 20px 4px',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 28, height: 28, background: 'var(--green)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="14" height="14" fill="none" stroke="#000" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z" strokeWidth="0" fill="#000" opacity=".0"/>
-              <path d="M4.5 9.5a9 9 0 0 1 15 0M9 15l1.5 3 1.5-3 1.5 3 1.5-3"/>
-            </svg>
-            <span style={{ fontSize: 14, fontWeight: 800, color: '#000', letterSpacing: '-0.02em' }}>C</span>
-          </div>
-          <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em' }}>CalTrack</span>
+          <img src="/icon-192.png" alt="CalsTrack" style={{ width: 32, height: 32, borderRadius: 8 }} />
+          <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em' }}>CalsTrack</span>
         </div>
         <button
           onClick={() => { setGoalsDraft({ ...goals }); setShowGoals(true) }}
