@@ -223,7 +223,7 @@ export default function TrackerHome() {
       color: 'var(--text)',
       maxWidth: 480,
       margin: '0 auto',
-      paddingBottom: 40,
+      paddingBottom: 'calc(72px + env(safe-area-inset-bottom))',
     }}>
       {/* ── Header ── */}
       <div style={{
