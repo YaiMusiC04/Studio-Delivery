@@ -343,7 +343,6 @@ export default function AddFoodModal({ meal, onAdd, onClose }) {
               ref={fileRef}
               type="file"
               accept="image/*"
-              capture="environment"
               onChange={handleFileChange}
               style={{ display: 'none' }}
             />
