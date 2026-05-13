@@ -151,10 +151,10 @@ export default function AddFoodModal({ meal, onAdd, onClose }) {
         body: JSON.stringify({ image: compressed.base64, mediaType: compressed.mediaType }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Error')
+      if (!res.ok) throw new Error(data.error || `Server error ${res.status}`)
       setScanResults(data)
     } catch (err) {
-      setScanError('Could not analyze the image. Try again or use Search.')
+      setScanError(`Error: ${err.message || 'Could not analyze the image. Try again.'}`)
     } finally {
       setScanLoading(false)
     }
