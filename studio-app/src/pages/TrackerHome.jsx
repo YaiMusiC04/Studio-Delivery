@@ -228,7 +228,7 @@ export default function TrackerHome() {
       {/* ── Header ── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '20px 20px 4px',
+        padding: 'calc(env(safe-area-inset-top) + 20px) 20px 4px',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 28, height: 28, background: 'var(--green)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
