@@ -1,5 +1,35 @@
 import { useState, useEffect, useRef } from 'react'
+import Anthropic from '@anthropic-ai/sdk'
 import { searchFoods } from '../lib/foodApi'
+
+const PROMPT = `Analyze this food image and estimate its nutritional content.
+Return ONLY a valid JSON object — no markdown, no explanation, just raw JSON:
+{"description":"Brief description","foods":[{"name":"Food name","estimatedGrams":150,"per100g":{"calories":250,"protein":18.0,"carbs":12.0,"fat":14.0,"fiber":0.5}}]}
+Rules: list each food separately, estimate grams from visual size, use accurate values per 100g, calories > 0.`
+
+async function analyzeImage(compressed) {
+  const client = new Anthropic({
+    apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,
+    dangerouslyAllowBrowser: true,
+  })
+  const msg = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 1024,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: compressed.mediaType, data: compressed.base64 } },
+        { type: 'text', text: PROMPT },
+      ],
+    }],
+  })
+  const text = msg.content[0].text.trim()
+  const match = text.match(/\{[\s\S]*\}/)
+  if (!match) throw new Error('Could not parse AI response')
+  const result = JSON.parse(match[0])
+  if (!Array.isArray(result.foods) || result.foods.length === 0) throw new Error('No foods detected')
+  return result
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -145,13 +175,7 @@ export default function AddFoodModal({ meal, onAdd, onClose }) {
     setScanPreview(compressed.preview)
 
     try {
-      const res = await fetch('/api/analyze-food', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: compressed.base64, mediaType: compressed.mediaType }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || `Server error ${res.status}`)
+      const data = await analyzeImage(compressed)
       setScanResults(data)
     } catch (err) {
       setScanError(`Error: ${err.message || 'Could not analyze the image. Try again.'}`)
