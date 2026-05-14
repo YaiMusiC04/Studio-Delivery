@@ -74,7 +74,7 @@ export default function ChatPage() {
     setBusy(true)
 
     try {
-      const history = [...messages, userMsg]
+      const history = [...messages, userMsg].map(({ role, content }) => ({ role, content }))
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
