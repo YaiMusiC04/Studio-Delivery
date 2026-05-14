@@ -105,6 +105,13 @@ export default function AddFoodModal({ meal, onAdd, onClose }) {
   const [scanError, setScanError]       = useState(null)
   const [gramsMap, setGramsMap]         = useState({})
 
+  // Describe
+  const [descText, setDescText]         = useState('')
+  const [descLoading, setDescLoading]   = useState(false)
+  const [descResults, setDescResults]   = useState(null)
+  const [descError, setDescError]       = useState(null)
+  const [descGramsMap, setDescGramsMap] = useState({})
+
   const inputRef = useRef(null)
   const fileRef  = useRef(null)
   const timerRef = useRef(null)
@@ -118,6 +125,14 @@ export default function AddFoodModal({ meal, onAdd, onClose }) {
       setGramsMap(init)
     }
   }, [scanResults])
+
+  useEffect(() => {
+    if (descResults?.foods) {
+      const init = {}
+      descResults.foods.forEach((food, i) => { init[i] = food.estimatedGrams || 100 })
+      setDescGramsMap(init)
+    }
+  }, [descResults])
 
   // Search debounce
   useEffect(() => {
@@ -175,6 +190,25 @@ export default function AddFoodModal({ meal, onAdd, onClose }) {
     })
   }
 
+  const handleDescribe = async () => {
+    if (!descText.trim()) return
+    setDescResults(null); setDescError(null); setDescLoading(true)
+    try {
+      const res = await fetch('/api/describe-food', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ description: descText.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not analyze description')
+      setDescResults(data)
+    } catch (err) {
+      setDescError(`Error: ${err.message}`)
+    } finally {
+      setDescLoading(false)
+    }
+  }
+
   const handleBackdrop = (e) => { if (e.target === e.currentTarget) onClose() }
 
   return (
@@ -208,8 +242,9 @@ export default function AddFoodModal({ meal, onAdd, onClose }) {
           {/* Mode toggle */}
           <div style={{ display: 'flex', background: 'var(--bg3)', borderRadius: 11, padding: 3, gap: 3 }}>
             {[
-              { id: 'search', label: '🔍 Search' },
-              { id: 'scan',   label: '📷 AI Scan' },
+              { id: 'search',   label: '🔍 Search' },
+              { id: 'describe', label: '✍️ AI Text' },
+              { id: 'scan',     label: '📷 AI Scan' },
             ].map(tab => (
               <button key={tab.id} onClick={() => setMode(tab.id)} style={{
                 flex: 1, padding: '8px 0',
@@ -464,6 +499,93 @@ export default function AddFoodModal({ meal, onAdd, onClose }) {
               </div>
             )}
 
+            <div style={{ height: 24 }} />
+          </div>
+        )}
+
+        {/* ── DESCRIBE MODE ── */}
+        {mode === 'describe' && (
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+            {!descResults && (
+              <>
+                <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 10, lineHeight: 1.6 }}>
+                  Describe what you ate and the AI will estimate the macros. Be as specific as you can.
+                </div>
+                <textarea
+                  value={descText}
+                  onChange={e => setDescText(e.target.value)}
+                  placeholder={'Arroz blanco con pollo a la plancha y aguacate, como 1 taza de arroz y 150g de pollo'}
+                  rows={4}
+                  style={{
+                    width: '100%', padding: '13px 14px', resize: 'vertical',
+                    background: 'var(--bg3)', border: '1px solid var(--border)',
+                    borderRadius: 12, color: 'var(--text)', fontSize: 14, lineHeight: 1.55,
+                    outline: 'none', fontFamily: 'inherit',
+                  }}
+                  onFocus={e => e.target.style.borderColor = 'rgba(34,197,94,0.4)'}
+                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                />
+                {descError && (
+                  <div style={{ margin: '12px 0', padding: '12px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 10 }}>
+                    <div style={{ fontSize: 13, color: '#FCA5A5' }}>{descError}</div>
+                  </div>
+                )}
+                <button
+                  onClick={handleDescribe}
+                  disabled={!descText.trim() || descLoading}
+                  style={{
+                    width: '100%', marginTop: 14, padding: '14px',
+                    background: descText.trim() ? 'var(--green)' : 'var(--bg3)',
+                    border: 'none', borderRadius: 12,
+                    color: descText.trim() ? '#000' : 'var(--text-mute)',
+                    fontSize: 14, fontWeight: 700, cursor: descText.trim() ? 'pointer' : 'default',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}
+                >
+                  {descLoading
+                    ? <><div style={{ width: 16, height: 16, border: '2px solid rgba(0,0,0,0.3)', borderTop: '2px solid #000', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Analyzing…</>
+                    : '✨ Analyze with AI'}
+                </button>
+              </>
+            )}
+
+            {descResults && !descLoading && (
+              <div>
+                {descResults.description && (
+                  <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 16, padding: '10px 14px', background: 'var(--bg3)', borderRadius: 10, lineHeight: 1.5 }}>
+                    🤖 <em>{descResults.description}</em>
+                  </div>
+                )}
+                <div style={{ fontSize: 11, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600, marginBottom: 10 }}>
+                  Detected Foods
+                </div>
+                {descResults.foods.map((food, i) => (
+                  <ScannedFoodCard
+                    key={i}
+                    food={food}
+                    grams={descGramsMap[i] ?? food.estimatedGrams ?? 100}
+                    onGramsChange={g => setDescGramsMap(prev => ({ ...prev, [i]: g }))}
+                  />
+                ))}
+                <button
+                  onClick={() => {
+                    descResults.foods.forEach((food, i) => {
+                      onAdd({ id: `ai_${Date.now()}_${i}`, name: food.name, brand: 'AI Estimate', grams: descGramsMap[i] ?? food.estimatedGrams ?? 100, per100g: food.per100g })
+                    })
+                    onClose()
+                  }}
+                  style={{ width: '100%', padding: '14px', background: 'var(--green)', border: 'none', borderRadius: 12, color: '#000', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}
+                >
+                  Add All to {meal.label}
+                </button>
+                <button
+                  onClick={() => { setDescResults(null); setDescError(null) }}
+                  style={{ width: '100%', padding: '11px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text-dim)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+                >
+                  Try another description
+                </button>
+              </div>
+            )}
             <div style={{ height: 24 }} />
           </div>
         )}
