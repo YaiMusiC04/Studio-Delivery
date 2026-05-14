@@ -189,6 +189,15 @@ export default function TrackerHome() {
 
   useEffect(() => { reload() }, [reload])
 
+  // Reset to today if the app was left open overnight
+  useEffect(() => {
+    const checkDay = () => {
+      if (toDateStr(currentDate) !== toDateStr(new Date())) setCurrentDate(new Date())
+    }
+    document.addEventListener('visibilitychange', checkDay)
+    return () => document.removeEventListener('visibilitychange', checkDay)
+  }, [currentDate])
+
   const allEntries = Object.values(dayLog).flat()
   const totals     = computeMacros(allEntries)
   const remaining  = goals.calories - totals.calories
