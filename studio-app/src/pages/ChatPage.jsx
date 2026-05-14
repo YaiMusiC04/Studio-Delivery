@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import Anthropic from '@anthropic-ai/sdk'
 import { getProfile, getGoals } from '../lib/storage'
 
 const GOAL_LABEL = { lose: 'bajar de peso', maintain: 'mantener peso', gain: 'ganar músculo' }
@@ -74,32 +73,45 @@ export default function ChatPage() {
     setMessages(prev => [...prev, userMsg, { role: 'assistant', content: '', streaming: true }])
     setBusy(true)
 
-    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
-    if (!apiKey) {
-      setMessages(prev => prev.slice(0, -1).concat({ role: 'assistant', content: '⚠️ API key missing — contact the app owner.' }))
-      setBusy(false)
-      return
-    }
-    const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
-
     try {
       const history = [...messages, userMsg]
-      const stream = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        system: buildSystem(profile, goals),
-        messages: history,
-        stream: true,
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messages: history, system: buildSystem(profile, goals) }),
       })
 
-      for await (const event of stream) {
-        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-          setMessages(prev => {
-            const last = prev[prev.length - 1]
-            return [...prev.slice(0, -1), { ...last, content: last.content + event.delta.text }]
-          })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `Server error ${res.status}`)
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split('\n')
+        buf = lines.pop()
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const raw = line.slice(6).trim()
+          if (!raw) continue
+          try {
+            const event = JSON.parse(raw)
+            if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+              setMessages(prev => {
+                const last = prev[prev.length - 1]
+                return [...prev.slice(0, -1), { ...last, content: last.content + event.delta.text }]
+              })
+            }
+          } catch { /* non-JSON lines */ }
         }
       }
+
       setMessages(prev => {
         const last = prev[prev.length - 1]
         return [...prev.slice(0, -1), { ...last, streaming: false }]

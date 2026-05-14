@@ -35,7 +35,7 @@ module.exports = async function handler(req, res) {
   const { image, mediaType } = req.body || {}
   if (!image) return res.status(400).json({ error: 'No image provided' })
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY
   if (!apiKey) return res.status(500).json({ error: 'API key not configured' })
 
   try {
