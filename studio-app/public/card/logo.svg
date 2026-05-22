@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="YG Lens">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#c6dcff"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00d4ff"/>
+      <stop offset="100%" stop-color="#2f7bff"/>
+    </linearGradient>
+  </defs>
+  <text x="200" y="155" text-anchor="middle"
+        font-family="Impact, 'Arial Black', sans-serif"
+        font-weight="900" font-size="170"
+        letter-spacing="-6"
+        fill="url(#g1)">YG</text>
+  <text x="200" y="260" text-anchor="middle"
+        font-family="Impact, 'Arial Black', sans-serif"
+        font-weight="900" font-size="92"
+        letter-spacing="14"
+        fill="url(#g2)">LENS</text>
+</svg>
