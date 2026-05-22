@@ -2,6 +2,7 @@
   "buildCommand": "cd studio-app && npm install && npm run build",
   "outputDirectory": "studio-app/dist",
   "rewrites": [
-    { "source": "/((?!api/|card($|/)).*)", "destination": "/index.html" }
+    { "source": "/card", "destination": "/card/index.html" },
+    { "source": "/((?!api/|card/).*)", "destination": "/index.html" }
   ]
 }
